@@ -1,0 +1,91 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+-- Silent Aim Settings
+local SilentAimEnabled = false
+local range = 200
+local targetPart = "Head"
+
+-- Get Closest NPC (non-player)
+local function getClosestNPC()
+	local closest, closestDist = nil, math.huge
+	for _, npc in pairs(Workspace:GetDescendants()) do
+		if npc:IsA("Model") and npc:FindFirstChild("Humanoid") and npc:FindFirstChild(targetPart) then
+			if not Players:GetPlayerFromCharacter(npc) and npc:FindFirstChild("HumanoidRootPart") then
+				local dist = (npc.PrimaryPart.Position - Camera.CFrame.Position).Magnitude
+				if dist < closestDist and dist < range then
+					closest = npc
+					closestDist = dist
+				end
+			end
+		end
+	end
+	return closest
+end
+
+-- Hook Raycast
+local old; old = hookmetamethod(game, "__namecall", function(self, ...)
+	local method = getnamecallmethod()
+	local args = {...}
+	if SilentAimEnabled and tostring(self) == "Raycast" and (method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
+		local npc = getClosestNPC()
+		if npc then
+			args[2] = Ray.new(Camera.CFrame.Position, (npc[targetPart].Position - Camera.CFrame.Position).Unit * 999)
+			return old(self, unpack(args))
+		end
+	end
+	return old(self, ...)
+end)
+
+-- GUI Creation
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "SilentAimGUI"
+ScreenGui.ResetOnSpawn = false
+
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 180, 0, 60)
+Frame.Position = UDim2.new(0.5, -90, 0.8, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+
+local UICorner = Instance.new("UICorner", Frame)
+UICorner.CornerRadius = UDim.new(0, 8)
+
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1, 0, 0.4, 0)
+Title.Position = UDim2.new(0, 0, 0, 0)
+Title.Text = "Silent Aim"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundTransparency = 1
+Title.TextScaled = true
+Title.Font = Enum.Font.GothamBold
+
+local Toggle = Instance.new("TextButton", Frame)
+Toggle.Size = UDim2.new(0.9, 0, 0.45, 0)
+Toggle.Position = UDim2.new(0.05, 0, 0.5, 0)
+Toggle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Toggle.Text = "Toggle: OFF"
+Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+Toggle.TextScaled = true
+Toggle.Font = Enum.Font.GothamBold
+
+local ToggleCorner = Instance.new("UICorner", Toggle)
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+
+-- Toggle Logic
+Toggle.MouseButton1Click:Connect(function()
+	SilentAimEnabled = not SilentAimEnabled
+	Toggle.Text = "Toggle: " .. (SilentAimEnabled and "ON" or "OFF")
+	Toggle.BackgroundColor3 = SilentAimEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(40, 40, 40)
+end)
+
+-- Start Notice
+print("yes yes yes it is loaded")
